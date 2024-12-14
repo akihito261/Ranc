@@ -60,54 +60,28 @@ int read_file(MATRIX data, const char *file_path)
     fclose(file);
     return 0;
 }
+void read_label(int *lable, const char *file_path)
+{
+    char line[1024];
+    FILE *file = fopen(file_path, "r");
+    if (file == NULL)
+    {
+        printf("Không thể mở file: %s\n", file_path);
+        return;
+    }
+    fgets(line, sizeof(line), file);
 
+    char *ptr = line;
+    int col = 0;
+    while (*ptr && col < 300)
+    {
+        lable[col] = strtol(ptr, &ptr, 10);
+        col++;
+    }
+    return;
+}
 char *get_index_pos(char *s)
 {
     size_t len = strlen(s);
     return len >= 5 ? s + len - 5 : NULL;
 }
-
-// int Input()
-// {
-//     char core_path[] = "D:\\Tai_lieu_20241\\project_1\\code\\data_input\\core0.txt";
-//     char input_path[] = "D:\\Tai_lieu_20241\\project_1\\code\\data_input\\input_core1.txt";
-
-//     char *core_index = get_index_pos(core_path);
-//     char *input_index = get_index_pos(input_path);
-//     if (!core_index || !input_index)
-//     {
-//         printf("Đường dẫn file không hợp lệ!\n");
-//         return EXIT_FAILURE;
-//     }
-
-//     MATRIX core[SIZE];
-//     MATRIX input_core[3]; // Chỉ cần 3 phần tử
-
-//     for (int i = 0; i < SIZE; i++)
-//     {
-//         *core_index = i + '0';
-//         core[i] = create_matrix();
-//         if (!core[i] || read_file(core[i], core_path) == -1)
-//         {
-//             printf("Lỗi khi đọc file core%d\n", i);
-//             return EXIT_FAILURE;
-//         }
-//     }
-
-//     for (int i = 0; i < 3; i++)
-//     {
-//         *input_index = i + '0';
-//         input_core[i] = create_matrix();
-//         if (!input_core[i] || read_file(input_core[i], input_path) == -1)
-//         {
-//             printf("Lỗi khi đọc file input_core%d\n", i);
-//             return EXIT_FAILURE;
-//         }
-//     }
-//     for (int i = 0; i < SIZE; i++)
-//         dispose(core[i]);
-//     for (int i = 0; i < 3; i++)
-//         dispose(input_core[i]);
-
-//     return 0;
-// }

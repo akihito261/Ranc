@@ -2,13 +2,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "input.c"
+
 struct neuron_struct
 {
     int negative_threshold;
     int positive_threshold;
     int reset_value_negative;
     int reset_value_positive;
-    int **connect;
+    int *connect;
     int *weight;
     int current;
 };
@@ -30,17 +31,24 @@ struct core_struct
     bool is_output_layer;
 };
 
-#define num_core 5                      // Ví dụ: số lượng core
-struct core_struct core_data[num_core]; // Cố định kích thước mảng
-bool output[250] = {0};
+#define num_core 5
+#define num_neuron_output 250
+#define number_of_samples 1000
+struct core_struct core_data[num_core];
+int label[number_of_samples];
+bool output[num_neuron_output] = {0};
 int MAX_NEURONS = 256;
+int num_axon = 256;
+int num_core_input = 4;
+
 void run_core(struct core_struct *core)
 {
     for (int i = 0; i < core->num_neuron; i++)
     {
-        for (int j = 0; j < 256; j++)
+        core->csram[i].current = 0;
+        for (int j = 0; j < num_axon; j++)
         {
-            core->csram[i].current += core->scheduler[j] * core->csram->connect[i][j] * core->csram[i].weight[j % 4];
+            core->csram[i].current += core->scheduler[j] * core->csram[i].connect[j] * core->csram[i].weight[j % 4];
         }
 
         if (core->csram[i].current >= core->csram[i].positive_threshold)
@@ -65,12 +73,17 @@ void run_core(struct core_struct *core)
         {
             core->csram[i].current = core->csram[i].reset_value_negative;
         }
+        core->csram[i].current = 0;
+    }
+    for (int i = 0; i < num_axon; i++)
+    {
+        core->scheduler[i] = 0;
     }
 }
 
 void insert_data(struct core_struct *core_)
 {
-    char core_path[] = "D:\\Tai_lieu_20241\\project_1\\code\\data_input\\core0.txt";
+    char core_path[] = "data_input\\core0.txt";
 
     char *core_index = get_index_pos(core_path);
 
@@ -99,11 +112,6 @@ void insert_data(struct core_struct *core_)
     {
         core_[i].num_neuron = core[i][0][0];
 
-        core_[i].csram->negative_threshold = core[i][1][0];
-        core_[i].csram->negative_threshold = core[i][2][0];
-        core_[i].csram->reset_value_negative = core[i][3][0];
-        core_[i].csram->reset_value_positive = core[i][4][0];
-
         core_[i].cord.dx = core[i][5][0];
         core_[i].cord.dy = core[i][5][1];
 
@@ -116,13 +124,20 @@ void insert_data(struct core_struct *core_)
 
         for (int j = 0; j < core_[i].num_neuron; j++)
         {
-            for (int k = 0; k < 256; k++)
+            core_[i].csram[j].negative_threshold = core[i][1][0];
+            core_[i].csram[j].positive_threshold = core[i][2][0];
+            core_[i].csram[j].reset_value_negative = core[i][3][0];
+            core_[i].csram[j].reset_value_positive = core[i][4][0];
+            for (int k = 0; k < num_axon; k++)
             {
-                core_[i].csram->connect[j][k] = core[i][j + 8][k];
+                core_[i].csram[j].connect[k] = core[i][j + 9][k];
             }
+            // int x[4] = {1, -1, 1, -1};
+            core_[i].csram[j].weight[0] = 1;
+            core_[i].csram[j].weight[1] = -1;
+            core_[i].csram[j].weight[2] = 1;
+            core_[i].csram[j].weight[3] = -1;
         }
-        int x[4] = {1, -1, 1, -1};
-        core_[i].csram->weight = x;
     }
 
     // giải phóng bộ nhớ
@@ -131,7 +146,7 @@ void insert_data(struct core_struct *core_)
 }
 void insert_input(struct core_struct *core_, int image_index)
 {
-    char input_path[] = "D:\\Tai_lieu_20241\\project_1\\code\\data_input\\input_core1.txt";
+    char input_path[] = "data_input\\input_core0.txt";
     char *input_index = get_index_pos(input_path);
 
     if (!input_index)
@@ -139,9 +154,9 @@ void insert_input(struct core_struct *core_, int image_index)
         printf("Đường dẫn file không hợp lệ!\n");
         return;
     }
-    MATRIX input_core[4]; // Chỉ cần 3 phần tử
+    MATRIX input_core[num_core_input]; // Chỉ cần 3 phần tử
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < num_core_input; i++)
     {
         *input_index = i + '0';
         input_core[i] = create_matrix();
@@ -154,7 +169,7 @@ void insert_input(struct core_struct *core_, int image_index)
 
     for (int i = 0; i < num_core; i++)
     {
-        for (int j = 0; j < 4; j++)
+        for (int j = 0; j < num_core_input; j++)
         {
             if (input_core[j][0][0] == core_[i].cord.dx && input_core[j][0][1] == core_[i].cord.dy)
             {
@@ -165,71 +180,85 @@ void insert_input(struct core_struct *core_, int image_index)
             }
         }
     }
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < num_core_input; i++)
         dispose(input_core[i]);
 }
 void allocate_memory(struct core_struct *core)
 {
     for (int i = 0; i < num_core; i++)
     {
-        core[i].csram = malloc(MAX_NEURONS * sizeof(struct neuron_struct));
-        for (int j = 0; j < MAX_NEURONS; j++)
+        core[i].csram = malloc(num_axon * sizeof(struct neuron_struct));
+        for (int j = 0; j < num_axon; j++)
         {
-            core[i].csram[j].connect = malloc(MAX_NEURONS * sizeof(int *));
-            for (int k = 0; k < MAX_NEURONS; k++)
-            {
-                core[i].csram[j].connect[k] = malloc(256 * sizeof(int));
-            }
+            core[i].csram[j].connect = malloc(num_axon * sizeof(int));
             core[i].csram[j].weight = malloc(4 * sizeof(int));
         }
     }
 }
-
+void label_()
+{
+    char label_path[] = "data_input\\label.txt";
+    read_label(label, label_path);
+}
 void free_memory(struct core_struct *core)
 {
     for (int i = 0; i < num_core; i++)
     {
-        for (int j = 0; j < MAX_NEURONS; j++)
+        for (int j = 0; j < num_axon; j++)
         {
-            for (int k = 0; k < MAX_NEURONS; k++)
-            {
-                free(core[i].csram[j].connect[k]);
-            }
             free(core[i].csram[j].connect);
-            // free(core[i].csram[j].weight);
+            free(core[i].csram[j].weight);
         }
         free(core[i].csram);
+    }
+}
+void reset_output()
+{
+    for (int i = 0; i < num_neuron_output; i++)
+    {
+        output[i] = 0;
     }
 }
 int main()
 {
     allocate_memory(core_data);
     insert_data(core_data);
-    insert_input(core_data, 0);
-    for (int i = 0; i < num_core; i++)
+    label_();
+    int a = 0;
+    int count = 0;
+    for (int a; a < 100; a++)
     {
-        run_core(&core_data[i]);
-    }
-
-    int vote[10] = {0};
-    for (int i = 0; i < 250; i++)
-    {
-        if (output[i])
+        insert_input(core_data, a);
+        for (int i = 0; i < num_core; i++)
         {
-            vote[i % 10]++;
+            run_core(&core_data[i]);
         }
-    }
+        // for(int i =0; i<256; i++){
+        //     core_data[4].scheduler[i] =0;
+        // }
 
-    int output_final = 0;
-    for (int i = 0; i < 10; i++)
-    {
-        if (vote[output_final] < vote[i])
+        int vote[10] = {0};
+        for (int i = 0; i < num_neuron_output; i++)
         {
-            output_final = i;
+            if (output[i])
+            {
+                vote[i % 10]++;
+            }
         }
-    }
 
-    printf("Output final: %d\n", output_final);
+        int output_final = 0;
+        for (int i = 0; i < 10; i++)
+        {
+            if (vote[output_final] < vote[i])
+            {
+                output_final = i;
+            }
+        }
+        reset_output();
+        if (output_final == label[a])
+            count++;
+    }
+    printf("%f", count / 100.0);
     free_memory(core_data);
     return 0;
 }
