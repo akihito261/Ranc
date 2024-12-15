@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "input.c"
-
+#include "parameter.c"
 struct neuron_struct
 {
     int negative_threshold;
@@ -31,15 +31,10 @@ struct core_struct
     bool is_output_layer;
 };
 
-#define num_core 5
-#define num_neuron_output 250
-#define number_of_samples 1000
+
 struct core_struct core_data[num_core];
 int label[number_of_samples];
 bool output[num_neuron_output] = {0};
-int MAX_NEURONS = 256;
-int num_axon = 256;
-int num_core_input = 4;
 
 void run_core(struct core_struct *core)
 {
@@ -93,9 +88,9 @@ void insert_data(struct core_struct *core_)
         return;
     }
 
-    MATRIX core[SIZE];
+    MATRIX core[num_core];
 
-    for (int i = 0; i < SIZE; i++)
+    for (int i = 0; i < num_core; i++)
     {
         *core_index = i + '0';
         core[i] = create_matrix();
@@ -141,7 +136,7 @@ void insert_data(struct core_struct *core_)
     }
 
     // giải phóng bộ nhớ
-    for (int i = 0; i < SIZE; i++)
+    for (int i = 0; i < num_core; i++)
         dispose(core[i]);
 }
 void insert_input(struct core_struct *core_, int image_index)
@@ -224,9 +219,9 @@ int main()
     allocate_memory(core_data);
     insert_data(core_data);
     label_();
-    int a = 0;
+    
     int count = 0;
-    for (int a; a < 100; a++)
+    for (int a=0; a < number_of_samples; a++)
     {
         insert_input(core_data, a);
         for (int i = 0; i < num_core; i++)
@@ -255,10 +250,14 @@ int main()
             }
         }
         reset_output();
+         //printf("%d", output_final);
+         //printf("%d \n", label[a]);
+
         if (output_final == label[a])
             count++;
     }
-    printf("%f", count / 100.0);
+   
+    printf("%f", (float)count / number_of_samples);
     free_memory(core_data);
     return 0;
 }

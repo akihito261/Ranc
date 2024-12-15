@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "parameter.c"
 #define MATRIX int **
-#define SIZE 5
-#define ROWS 300
+int ROWS = number_of_samples + 1;
 #define COLUMNS 256
 
 MATRIX create_matrix()
@@ -62,7 +61,7 @@ int read_file(MATRIX data, const char *file_path)
 }
 void read_label(int *lable, const char *file_path)
 {
-    char line[1024];
+    char line[2*number_of_samples];
     FILE *file = fopen(file_path, "r");
     if (file == NULL)
     {
@@ -73,7 +72,7 @@ void read_label(int *lable, const char *file_path)
 
     char *ptr = line;
     int col = 0;
-    while (*ptr && col < 300)
+    while (*ptr && col < ROWS)
     {
         lable[col] = strtol(ptr, &ptr, 10);
         col++;
